@@ -99,6 +99,7 @@ function Apply-PatchesToTempBranch {
                             break
                         }
                         "abort" {
+                            git am --abort
                             throw "用户中止补丁应用"
                         }
                         default {
@@ -119,6 +120,10 @@ function Apply-PatchesToTempBranch {
 
 function Invoke-InteractiveCherryPick {
     $commits = @(git log --reverse --pretty=format:"%H" "$TargetBranch..$TempBranch")
+
+    
+    Write-Host "正在切换分支到$TargetBranch..." -ForegroundColor Yellow
+    git checkout $TargetBranch
     
     if ($commits.Count -eq 0) {
         Write-Host "没有需要移植的提交" -ForegroundColor Yellow
@@ -201,7 +206,6 @@ try {
     Invoke-InteractiveCherryPick
 
     # 清理临时分支
-    git checkout $TargetBranch
     git branch -D $TempBranch
 
     Write-Host "`n操作成功完成!`n" -ForegroundColor Green
