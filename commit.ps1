@@ -18,7 +18,6 @@ param(
 
 # 初始化配置
 $ErrorActionPreference = "Stop"
-$global:OriginalBranch = git branch --show-current
 
 function Write-Info {
     param([string]$message)
@@ -32,10 +31,10 @@ function Write-Error {
 
 function Restore-OriginalState {
     Write-Info "正在恢复原始状态..."
-    if ($global:OriginalBranch) {
-        git checkout $global:OriginalBranch 2>&1 | Out-Null
-        git branch -D $TempBranch 2>&1 | Out-Null
+    if ("$(git branch --show-current)" -ne $TargetBranch) {
+        git checkout $TargetBranch 2>&1 | Out-Null
     }
+    git branch -D $TempBranch 2>&1 | Out-Null
 }
 
 function Assert-OnTargetBranch {
@@ -121,9 +120,10 @@ function Apply-PatchesToTempBranch {
 function Invoke-InteractiveCherryPick {
     $commits = @(git log --reverse --pretty=format:"%H" "$TargetBranch..$TempBranch")
 
-    
-    Write-Host "正在切换分支到$TargetBranch..." -ForegroundColor Yellow
-    git checkout $TargetBranch
+    if ("$(git branch --show-current)" -ne $TargetBranch) {
+        Write-Host "正在切换分支到$TargetBranch..." -ForegroundColor Yellow
+        git checkout $TargetBranch
+    }
     
     if ($commits.Count -eq 0) {
         Write-Host "没有需要移植的提交" -ForegroundColor Yellow
@@ -151,7 +151,8 @@ function Show-InteractiveMenu {
     param([string]$Commit)
 
     while ($true) {
-        Write-Host "`n当前提交: $Commit" -ForegroundColor Green
+        $commitMsg = git log -1 --pretty=format:"%s" $commit
+        Write-Host "`n当前提交: $Commit ($commitMsg)" -ForegroundColor Green
         Write-Host "请选择操作:"
         Write-Host "  1) 继续下一个提交"
         Write-Host "  2) 修改当前提交 (amend)"
